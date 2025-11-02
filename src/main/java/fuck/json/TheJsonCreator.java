@@ -14,10 +14,11 @@ import java.util.Map;
 public class TheJsonCreator {
 
     /**
-     * <h1>Jsoner [v1.2.1]</h1>
+     * <h1>Jsoner [v1.3]</h1>
      * by TFJ - MIT license <br><a href="https://github.com/TFJ2021/jsoner">GitHub Link</a>
      */
 
+    // Variables
     private File file;
     private Gson gson;
     private JsonElement root;
@@ -26,10 +27,10 @@ public class TheJsonCreator {
      * Creates new JsonCreator with a brand-new file
      *
      * @param resourcePath Relative path of the file to be copied from the resource folder
-     * @param targetPath Relative path to the file that should be created
+     * @param targetPath   Relative path to the file that should be created
      */
-    public TheJsonCreator(String resourcePath, String targetPath) {
-        File file = new File(targetPath);
+    public TheJsonCreator(Path targetPath, String resourcePath) {
+        File file = new File(targetPath.toUri());
         File directory = file.getParentFile();
         if (!file.exists()) {
             // Creates Directory
@@ -46,7 +47,7 @@ public class TheJsonCreator {
             try {
                 InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
                 if (inputStream == null) throw new FileNotFoundException();
-                Files.copy(inputStream, Path.of(targetPath), StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
                 inputStream.close();
             } catch (IOException e) {
                 throw new RuntimeException(e);
@@ -63,8 +64,8 @@ public class TheJsonCreator {
      * @param targetPath Relative path to the file that should be loaded
      * @throws RuntimeException When the File couldn't be found
      */
-    public TheJsonCreator(String targetPath) {
-        File file = new File(targetPath);
+    public TheJsonCreator(Path targetPath) {
+        File file = targetPath.toFile();
         if (!file.exists()) throw new RuntimeException(new FileNotFoundException());
 
         // The main startup
@@ -72,9 +73,9 @@ public class TheJsonCreator {
     }
 
     /**
-     * Uses a string in Json format for the creator
+     * Uses a string in JSON format for the creator
      *
-     * @param json The json as String
+     * @param json The JSON as String
      * @param file (Nullable) To which file the content should be saved with save()
      */
     public TheJsonCreator(String json, File file) {
@@ -144,10 +145,12 @@ public class TheJsonCreator {
 
     /**
      * Saves the current state back to the JSON file.
+     *
+     * @apiNote It could that sections cannot be saved
      */
     public void save() {
         // Checks whether a file has been deposited
-        if (file == null) throw new RuntimeException(new FileNotFoundException("No file has been deposited"));
+        if (file == null) throw new RuntimeException(new FileNotFoundException("No file has been set"));
 
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(file));
@@ -161,23 +164,24 @@ public class TheJsonCreator {
     /**
      * Sets a new Value
      *
-     * @param path Path in the format "object.subobject.field". Cannot be null
+     * @param path  Path in the format "object.subobject.field". Cannot be null
      * @param value New value (any type, serialized via Gson)
-     * @param <T> Value type
+     * @param <T>   Value type
      * @throws IllegalArgumentException when the path is null
      */
     public <T> void set(String path, T value) {
         if (path == null) throw new RuntimeException(new IllegalArgumentException());
         JsonElement jsonValue = gson.toJsonTree(value);
 
-        // Case 1: Set root
+        // Case 1: Path is empty
         if (path.isEmpty()) {
             this.root = jsonValue;
             return;
         }
 
         // Case 2: Root must be objected for nested keys
-        if (!(root != null && root.isJsonObject())) throw new IllegalStateException("Root is not a JSON object – cannot be set with path");
+        if (!(root != null && root.isJsonObject()))
+            throw new IllegalStateException("Root is not a JSON object – cannot be set with path");
 
         String[] parts = path.split("\\.");
         JsonObject current = root.getAsJsonObject();
@@ -202,8 +206,8 @@ public class TheJsonCreator {
     /**
      * Reads a value using a "dot" path, casts it to clazz, or returns the fallback.
      *
-     * @param path Path in the format "object.subobject.field"
-     * @param clazz Target Typ
+     * @param path     Path in the format "object.subobject.field"
+     * @param clazz    Target Typ
      * @param fallback Fallback-Value
      * @return Value or fallback
      */
@@ -227,6 +231,7 @@ public class TheJsonCreator {
     public String getString(String path, String fallback) {
         return get(path, String.class, fallback);
     }
+
     public String getString(String path) {
         return getString(path, null);
     }
@@ -235,6 +240,7 @@ public class TheJsonCreator {
     public boolean getBoolean(String path, boolean fallback) {
         return get(path, Boolean.class, fallback);
     }
+
     public boolean getBoolean(String path) {
         return getBoolean(path, false);
     }
@@ -243,6 +249,7 @@ public class TheJsonCreator {
     public int getByte(String path, byte fallback) {
         return get(path, Byte.class, fallback);
     }
+
     public int getByte(String path) {
         return getByte(path, (byte) 0);
     }
@@ -251,6 +258,7 @@ public class TheJsonCreator {
     public int getInteger(String path, int fallback) {
         return get(path, Integer.class, fallback);
     }
+
     public int getInteger(String path) {
         return getInteger(path, 0);
     }
@@ -259,6 +267,7 @@ public class TheJsonCreator {
     public long getLong(String path, long fallback) {
         return get(path, Long.class, fallback);
     }
+
     public long getLong(String path) {
         return getLong(path, 0L);
     }
@@ -267,6 +276,7 @@ public class TheJsonCreator {
     public float getFloat(String path, float fallback) {
         return get(path, Float.class, fallback);
     }
+
     public float getFloat(String path) {
         return getFloat(path, 0f);
     }
@@ -275,6 +285,7 @@ public class TheJsonCreator {
     public double getDouble(String path, double fallback) {
         return get(path, Double.class, fallback);
     }
+
     public double getDouble(String path) {
         return getDouble(path, 0d);
     }
@@ -282,8 +293,8 @@ public class TheJsonCreator {
     /**
      * Gets a list
      *
-     * @param path Path in the format "object.subobject.field"
-     * @param clazz List Typ
+     * @param path     Path in the format "object.subobject.field"
+     * @param clazz    List Typ
      * @param fallback Fallback-Value
      * @return List or fallback
      */
@@ -301,9 +312,59 @@ public class TheJsonCreator {
         }
     }
 
+    // Returns empty list instead of null
     public <T> List<T> getList(String path, Class<T> clazz) {
-        return getList(path, clazz, null);
+        return getList(path, clazz, List.of());
     }
+
+    // Returns empty list instead of null
+    public List<String> getStringList(String path) {
+        return getList(path, String.class, List.of());
+    }
+
+    /**
+     * Returns a subsection of this JSON as a new TheJsonCreator instance.
+     *
+     * @param path Path in the format "object.subobject.field"
+     * @return new TheJsonCreator instance
+     * @since 1.3
+     */
+    public TheJsonCreator getSection(String path) {
+        JsonElement node = traverse(path);
+        if (node == null || node.isJsonNull()) throw new IllegalArgumentException("Path not found: " + path);
+
+        TheJsonCreator section = new TheJsonCreator("{}", null);
+        section.gson = this.gson;
+        section.root = node.deepCopy();
+        return section;
+    }
+
+    /**
+     * Returns a section inside a JSON array by index as a new TheJsonCreator instance.
+     *
+     * @param path  Path in the format "object.subobject.field"
+     * @param index Index of Array
+     * @return new TheJsonCreator instance
+     * @since 1.3
+     */
+    public TheJsonCreator getArraySection(String path, int index) {
+        JsonElement node = traverse(path);
+        if (node == null || !node.isJsonArray())
+            throw new IllegalArgumentException("Path does not point to an array: " + path);
+
+
+        JsonArray arr = node.getAsJsonArray();
+        if (index < 0 || index >= arr.size())
+            throw new IndexOutOfBoundsException("Index " + index + " out of bounds for array at path: " + path);
+
+
+        JsonElement element = arr.get(index);
+        TheJsonCreator section = new TheJsonCreator("{}", null);
+        section.gson = this.gson;
+        section.root = element.deepCopy();
+        return section;
+    }
+
 
     /**
      * Traverses the JSON structure according to dot notation.
@@ -343,7 +404,8 @@ public class TheJsonCreator {
         for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
             String fullKey = prefix.isEmpty() ? entry.getKey() : prefix + "." + entry.getKey();
             keys.add(fullKey);
-            if (deep && entry.getValue().isJsonObject()) collectKeys(entry.getValue().getAsJsonObject(), fullKey, true, keys);
+            if (deep && entry.getValue().isJsonObject())
+                collectKeys(entry.getValue().getAsJsonObject(), fullKey, true, keys);
         }
     }
 
